@@ -8,11 +8,31 @@ import os
 
 
 class File:
+    """
+    A SIMPLE FILE MANAGER\n
+    `get_filename` -> Return the file name\n
+    `get_filepath` -> Return the file path\n
+    `rename` -> Rename the file\n
+    `exists` -> Check if file exists\n
+    `is_empty` -> Check if file is empty\n
+    `create` -> Create the file\n
+    `delete` -> Delete the file\n
+    `read` -> Read file content\n
+    `readlines` -> Read file content\n
+    `write` -> Write text in file\n
+    `append` -> Write text in file in append mode\n
+    `clear` -> Remove all text in the file
+    """
+
     def __init__(self, filename: str = ""):
         self.filename = filename
 
     def get_filename(self) -> str:
         """ Get file name """
+        return self.filename.split("/")[-1]
+
+    def get_filepath(self) -> str:
+        """ Get file path """
         return self.filename
 
     def rename(self, new_filename: str) -> None:
