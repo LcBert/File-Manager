@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 
 class File:
@@ -6,14 +7,23 @@ class File:
     A file management class to easily handle file system operations.
     """
 
-    def __init__(self, filename: str = "") -> None:
+    def __init__(self, filename: str | Path) -> None:
         """
         Initializes the File instance with the absolute path of the given filename.
 
         Args:
             filename (str): The name or path of the file. Defaults to an empty string.
         """
-        self.filename = os.path.abspath(filename)
+        self.path: Path = Path(filename).resolve()
+
+    def __fspath__(self) -> str:
+        return str(self.path)
+
+    def __str__(self) -> str:
+        return str(self.path)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({str(self.path)!r})"
 
     def get_filename(self) -> str:
         """
@@ -22,49 +32,55 @@ class File:
         Returns:
             str: The base name of the file.
         """
-        return os.path.basename(self.filename)
+        return self.path.name
 
-    def get_filepath(self) -> str:
+    def get_parent(self) -> Path:
         """
         Gets the directory path where the file is located.
 
         Returns:
             str: The directory path of the file.
         """
-        return os.path.dirname(self.filename)
+        return self.path.parent
 
-    def get_fullpath(self) -> str:
+    def get_path(self) -> Path:
         """
         Gets the complete absolute path of the file.
 
         Returns:
             str: The full path of the file.
         """
-        return os.path.join(self.get_filepath(), self.get_filename())
+        return self.path
 
-    def rename(self, new_filename: str) -> None:
+    def rename(self, new_path: str | Path) -> None:
         """
-        Renames the file to a new name or path.
+        Renames or moves the file to a new name or path.
 
         If the file does not exist on the file system yet, it updates the internal
         filename reference.
 
         Args:
-            new_filename (str): The new name or path for the file.
+            new_path (str | Path): The new name or path for the file.
 
         Raises:
             FileExistsError: If a file with the new name already exists.
         """
-        new_abspath = os.path.abspath(new_filename)
-        if (os.path.exists(new_abspath)):
-            raise FileExistsError(f"File {new_filename} already exists")
+        is_dir_intent = str(new_path).endswith(("/", "\\")) or Path(new_path).is_dir()
+        target = Path(new_path).resolve()
 
-        if not self.exists():
-            self.filename = new_abspath
-            return
+        if is_dir_intent:
+            target.mkdir(parents=True, exist_ok=True)
+            target = target / self.path.name
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
 
-        os.rename(self.filename, new_abspath)
-        self.filename = new_abspath
+        if target.exists():
+            raise FileExistsError(f"File {target} already exists")
+
+        if self.exists():
+            self.path = self.path.rename(target)
+        else:
+            self.path = target
 
     def exists(self) -> bool:
         """
@@ -73,7 +89,7 @@ class File:
         Returns:
             bool: True if the file exists, False otherwise.
         """
-        return os.path.exists(self.filename)
+        return self.path.exists()
 
     def is_empty(self) -> bool:
         """
@@ -82,41 +98,41 @@ class File:
         Returns:
             bool: True if the file is empty, False otherwise.
         """
-        return os.path.getsize(self.filename) == 0
+        return self.path.stat().st_size == 0
 
     def create(self) -> None:
         """
         Creates a new empty file on the file system.
         """
-        open(self.filename, "x").close()
+        self.path.touch(exist_ok=False)
 
     def delete(self) -> None:
         """
         Deletes the file from the file system.
         """
-        os.remove(self.filename)
+        self.path.unlink()
 
-    def read(self) -> str:
+    def read(self, encoding="utf-8") -> str:
         """
         Reads and returns the entire content of the file.
 
         Returns:
             str: The content of the file.
         """
-        with open(self.filename, "r") as file:
+        with open(self.path, "r", encoding=encoding) as file:
             return file.read()
 
-    def readlines(self) -> list:
+    def readlines(self, encoding="utf-8") -> list:
         """
         Reads the file and returns a list of its lines.
 
         Returns:
             list: A list of strings, each representing a line in the file.
         """
-        with open(self.filename, "r") as file:
+        with open(self.path, "r", encoding=encoding) as file:
             return file.readlines()
 
-    def write(self, text: str) -> int:
+    def write(self, text: str, encoding="utf-8") -> int:
         """
         Writes text to the file. Overwrites any existing content.
 
@@ -126,10 +142,10 @@ class File:
         Returns:
             int: The number of characters written.
         """
-        with open(self.filename, "w") as file:
+        with open(self.path, "w", encoding=encoding) as file:
             return file.write(text)
 
-    def append(self, text: str) -> int:
+    def append(self, text: str, encoding="utf-8") -> int:
         """
         Appends text to the end of the file.
 
@@ -139,12 +155,11 @@ class File:
         Returns:
             int: The number of characters appended.
         """
-        with open(self.filename, "a") as file:
+        with open(self.path, "a", encoding=encoding) as file:
             return file.write(text)
 
     def clear(self) -> None:
         """
         Clears the content of the file, making it empty.
         """
-        with open(self.filename, "w") as file:
-            file.write("")
+        self.write("")
